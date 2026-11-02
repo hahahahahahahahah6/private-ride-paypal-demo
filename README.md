@@ -62,15 +62,16 @@ npm start                 # http://localhost:3000
 ## Tested end-to-end (real Sandbox + Gemini, Nov 1, 2026)
 All IDs below are PayPal **Sandbox** IDs. No real money moved.
 
-### Latest hosted run on Render (screen-recorded, Nov 1, 2026, ~10:36 PM PST)
-1. AI fare (Gemini `gemini-3.5-flash`): **$95.00** vs. rule-based baseline **$86.50** (Glendora, CA → LAX T4, 32 mi, 50 min, 7:30 AM).
-2. PayPal Checkout (Orders v2 + JS SDK, Sandbox buyer): order `6WJ47381TS0286740`, capture `3UY63940LF868135D`, status **COMPLETED**, $95.00 USD.
+### Latest hosted run on Render (screen-recorded for the demo video, Nov 1, 2026, ~10:49 PM PST)
+1. AI fare (Gemini `gemini-3.5-flash-lite`, the fallback model): **$115.00** vs. rule-based baseline **$86.50** (Glendora, CA → LAX T4, 32 mi, 50 min, 7:30 AM, 2 passengers).
+2. PayPal Checkout (Orders v2 + JS SDK, Sandbox buyer): order `48J43089YV5812441`, capture `2MA03628YS0270542`, status **COMPLETED**, 115.00 USD.
 3. AI dispatch (`gemini-3.5-flash`): Driver A (demo).
-4. Driver payout (PayPal Payouts, Sandbox): batch `25VG7TZCV6H8L`, **$76.00** (80% of fare), PENDING → **SUCCESS** after "Refresh payout status".
-5. AI trip summary (EN + ZH, for the operator) written by the fallback model `gemini-3.5-flash-lite`.
-6. Ledger: the capture, three webhooks (`CHECKOUT.ORDER.APPROVED`, `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.PAYOUTSBATCH.SUCCESS`), each `verified: true` via PayPal's `verify-webhook-signature`, plus `payout_created`.
+4. Driver payout (PayPal Payouts, Sandbox): batch `J5W34MGLLBTC2`, **$92.00** (80% of fare), PENDING → **SUCCESS** after "Refresh payout status".
+5. AI trip summary (EN + ZH, for the operator) written by `gemini-3.5-flash-lite`.
+6. Ledger: 5 entries: the capture, three webhooks (`CHECKOUT.ORDER.APPROVED`, `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.PAYOUTSBATCH.SUCCESS`), each `verified: true` via PayPal's `verify-webhook-signature`, plus `payout_created`.
 
 ### Earlier runs (brief)
+- Hosted, ~10:36 PM PST: order `6WJ47381TS0286740` / capture `3UY63940LF868135D` / payout `25VG7TZCV6H8L` SUCCESS ($95 fare, $76 payout); same three webhooks verified.
 - Hosted, ~10:05 PM PST: order `33X27905HG703194F` / capture `0CE13430E89718402` / payout `2CGXG5VF5U294` SUCCESS; same three webhooks verified. Screenshots: [`docs/hosted-full-run.png`](docs/hosted-full-run.png) (taken before the live payout-status fix, so its summary text says PENDING), [`docs/hosted-ledger.png`](docs/hosted-ledger.png).
 - Local: order `2FR60181NK187013C` / capture `8NH41129SB271564W` / payout `A5E28Q49YYETQ`; a separate $1 payout test `KZWMQJRFWQJNU` reached SUCCESS.
 
