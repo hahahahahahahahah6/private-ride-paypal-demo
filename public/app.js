@@ -65,9 +65,9 @@ $('completeBtn').onclick = async () => {
     const payoutHtml = p.simulated
       ? `<p class="sim">Simulated payout (pending sandbox Payouts access) — no money was sent. $${p.amount.toFixed(2)}</p><p>${esc(p.reason)}</p>`
       : `<p class="ok">Sandbox payout created: batch <code>${esc(p.payoutBatchId)}</code>, status <b id="pstatus">${esc(p.status)}</b>, $${p.amount.toFixed(2)}</p><button id="refreshPayout">Refresh payout status</button>`;
-    const sum = r.summary ? `<h4>AI trip summary <small>(${esc(r.summary.model || '')})</small></h4><p>${esc(r.summary.en)}</p><p>${esc(r.summary.zh)}</p>` : `<p class="err">Summary failed: ${esc(r.summaryError)}</p>`;
+    const sum = r.summary ? `<h4>AI trip summary <small>(${esc(r.summary.model || '')})</small></h4><p>${esc(r.summary.en)}</p><p>${esc(r.summary.zh)}</p><p id="plineEn"><b>${esc(r.payoutLine.en)}</b></p><p id="plineZh"><b>${esc(r.payoutLine.zh)}</b></p>` : `<p class="err">Summary failed: ${esc(r.summaryError)}</p>`;
     $('complete').innerHTML = payoutHtml + sum;
-    if (!p.simulated) $('refreshPayout').onclick = async () => { try { $('pstatus').textContent = (await call('GET', `/api/payouts/${p.payoutBatchId}`)).status; } catch (e) { alert(e.message); } };
+    if (!p.simulated) $('refreshPayout').onclick = async () => { try { const s = await call('GET', `/api/payouts/${p.payoutBatchId}`); $('pstatus').textContent = s.status; if ($('plineEn')) { $('plineEn').innerHTML = '<b>' + esc(s.payoutLine.en) + '</b>'; $('plineZh').innerHTML = '<b>' + esc(s.payoutLine.zh) + '</b>'; } } catch (e) { alert(e.message); } };
   } catch (e) { $('complete').innerHTML = errHtml(e); $('completeBtn').disabled = false; }
 };
 $('ledgerBtn').onclick = async () => { $('ledger').textContent = JSON.stringify(await call('GET', '/api/ledger'), null, 2); };

@@ -150,3 +150,15 @@ test('[paypal] createOrder returns approveUrl; captureOrder maps capture-only re
   assert.strictEqual(c.status, undefined);
   assert.strictEqual(flow.stageAfterCapture(c), 'paid');
 });
+
+test('[tripflow] payout status line: live EN+ZH, updates with status', () => {
+  const a = flow.payoutStatusLine('PENDING'); const b = flow.payoutStatusLine('SUCCESS');
+  assert.match(a.en, /PENDING/); assert.match(a.zh, /处理中/); assert.match(b.zh, /已到账/); assert.match(b.en, /SUCCESS/);
+  assert.notStrictEqual(a.zh, b.zh);
+  assert.match(flow.payoutStatusLine('WEIRD').zh, /未知状态/);
+  assert.match(flow.payoutStatusLine(null, true).zh, /模拟放款/);
+});
+test('[prompts] summary prompt does not bake in payout status', () => {
+  const { tripSummary } = require('../lib/ai/prompts');
+  assert.match(tripSummary.prompt({ paidUsd: 95 }), /Do NOT mention the driver payout status/);
+});

@@ -19,7 +19,7 @@ private-ride is a small private car-service tool I (Hao Li) run for my dad. This
 - The live private-ride service existed before the hackathon and is untouched.
 
 ## Try the hosted demo
-- URL: `<RENDER_URL>` (hosted on Render's free tier; the first request after idle can take ~1 minute to wake up).
+- URL: https://private-ride-paypal-demo.onrender.com (hosted on Render's free tier; after idle, the first request can take ~30-60 seconds while the service cold-starts).
 - **Sandbox only. No real money moves.** Payments use PayPal's Sandbox environment and test accounts.
 
 ## Sandbox test buyer
@@ -62,20 +62,27 @@ npm start                 # http://localhost:3000
 `render.yaml` defines a free Node web service (`npm install`, `npm start`; the server listens on `$PORT` at `0.0.0.0`). Set the secret env vars (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `GEMINI_API_KEY`, `DRIVER_SANDBOX_EMAIL`) in the Render dashboard; they are never stored in the repo.
 
 ## Tested end-to-end (real Sandbox + Gemini, Nov 1, 2026)
-One full run in the browser UI with real PayPal Sandbox and Gemini API calls (screenshots in [`docs/`](docs/)):
-1. AI fare (Gemini `gemini-3.5-flash`): **$95.00** vs. rule-based baseline **$86.50** (Glendora, CA → LAX T4, 32 mi, 7:30 AM). [`docs/ui-1-estimate.png`](docs/ui-1-estimate.png)
-2. PayPal Checkout (Sandbox buyer): order `2FR60181NK187013C`, capture `8NH41129SB271564W`, status **COMPLETED**, $95.00 USD. [`docs/ui-2-capture.png`](docs/ui-2-capture.png)
-3. AI dispatch: Driver A (demo), rated 4.9, 6 min away; Driver C was unavailable. [`docs/ui-3-dispatch.png`](docs/ui-3-dispatch.png)
-4. Driver payout (PayPal Payouts, Sandbox): batch `A5E28Q49YYETQ`, **$76.00** (80% of fare), status PENDING → PROCESSING. This is a real sandbox payout, not simulated. [`docs/ui-4-payout-summary.png`](docs/ui-4-payout-summary.png)
-5. AI trip summary in English and Simplified Chinese, containing the real capture ID and payout status.
+All IDs below are PayPal **Sandbox** IDs. No real money moved.
 
-Separately, a $1 sandbox payout test (batch `KZWMQJRFWQJNU`) went PENDING → PROCESSING → **SUCCESS** in about 20 seconds.
+### Hosted run on Render (Nov 1, 2026, ~10:05 PM PST)
+1. AI fare (Gemini `gemini-3.5-flash`): **$95.00** vs. rule-based baseline **$86.50** (Glendora, CA → LAX T4, 32 mi, 7:30 AM).
+2. PayPal Checkout (Orders v2 + JS SDK, Sandbox buyer): order `33X27905HG703194F`, capture `0CE13430E89718402`, status **COMPLETED**, $95.00 USD.
+3. AI dispatch: Driver A (demo).
+4. Driver payout (PayPal Payouts, Sandbox): batch `2CGXG5VF5U294`, **$76.00** (80% of fare), PENDING → **SUCCESS**.
+5. Webhooks: `CHECKOUT.ORDER.APPROVED`, `PAYMENT.CAPTURE.COMPLETED` and `PAYMENT.PAYOUTSBATCH.SUCCESS` were received by the hosted app, each returned `verified: true` from PayPal's `verify-webhook-signature` API, and were written to the ledger. (Sandbox webhook created via the PayPal REST API.)
+
+Screenshots: [`docs/hosted-full-run.png`](docs/hosted-full-run.png), [`docs/hosted-ledger.png`](docs/hosted-ledger.png). Note: that hosted screenshot was taken before the live payout-status fix, so its AI summary still says PENDING while the payout line above it says SUCCESS.
+
+### Earlier local run (browser UI)
+- Order `2FR60181NK187013C`, capture `8NH41129SB271564W` (COMPLETED, $95.00); Driver A dispatched; payout batch `A5E28Q49YYETQ` $76.00 (PENDING → PROCESSING at the time of the screenshot).
+- A separate $1 sandbox payout test (batch `KZWMQJRFWQJNU`) went PENDING → PROCESSING → **SUCCESS** in about 20 seconds.
 
 Unit tests: `npm test` uses mocked HTTP only (no real API calls).
 
-What failed or is not yet verified:
-- **Webhook verification has not been tested live yet**: it needs the deployed public URL and a sandbox webhook ID.
-- During testing, `gemini-3.8-flash` repeatedly returned 503 (busy), so the default is `gemini-3.5-flash` with retry and fallback. A first run showed an "unpaid trip" error caused by a duplicated dispatch request; buttons now lock while waiting and duplicate requests cannot trigger a second payout.
+### What failed along the way / known issues
+- `gemini-3.8-flash` repeatedly returned 503 (busy), so the default is `gemini-3.5-flash` with retry and fallback; the UI shows which model answered.
+- A duplicated dispatch request once caused an "unpaid trip" error; buttons now lock while waiting and duplicate requests cannot trigger a second payout.
+- The AI trip summary used to bake in the payout status at creation time (e.g. PENDING). The payout status is now a separate live line (English + Chinese) that updates when you click "Refresh payout status".
 
 ## Limitations
 - Fares use user-entered miles/minutes (no maps API). Drivers are fictional. Trip state is in memory.

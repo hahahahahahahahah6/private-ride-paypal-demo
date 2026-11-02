@@ -82,9 +82,9 @@ const routes = {
     ledger.append({ type: payout.simulated ? 'payout_simulated' : 'payout_created', tripId: t.id, payoutBatchId: payout.payoutBatchId || null, amount, status: payout.status });
     let summary = null, summaryError = null;
     try {
-      summary = await ai.summarizeTrip({ pickup: t.trip.pickup, dropoff: t.trip.dropoff, miles: t.trip.miles, paidUsd: t.fareUsd, captureId: t.capture?.captureId, driver: d.name, payoutStatus: payout.simulated ? 'simulated (not sent; sandbox Payouts access pending)' : payout.status });
+      summary = await ai.summarizeTrip({ pickup: t.trip.pickup, dropoff: t.trip.dropoff, miles: t.trip.miles, paidUsd: t.fareUsd, captureId: t.capture?.captureId, driver: d.name });
     } catch (e) { summaryError = e.message; }
-    return { payout: t.payout, summary, summaryError, stage: t.stage };
+    return { payout: t.payout, payoutLine: flow.payoutStatusLine(payout.status, payout.simulated), summary, summaryError, stage: t.stage };
     } finally { t.completing = false; }
   },
   'POST /api/webhooks/paypal': async (req) => {
@@ -103,7 +103,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   const pp = url.pathname.match(/^\/api\/payouts\/([A-Z0-9]+)$/);
   try {
-    if (pp && req.method === 'GET') return send(res, 200, await paypal.getPayoutStatus(pp[1]));
+    if (pp && req.method === 'GET') { const st = await paypal.getPayoutStatus(pp[1]); return send(res, 200, { ...st, payoutLine: flow.payoutStatusLine(st.status, st.simulated) }); }
     const h = routes[`${req.method} ${url.pathname}`];
     if (h) return send(res, 200, await h(req));
     if (req.method === 'GET') {
