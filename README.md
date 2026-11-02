@@ -23,9 +23,7 @@ private-ride is a small private car-service tool I (Hao Li) run for my dad. This
 - **Sandbox only. No real money moves.** Payments use PayPal's Sandbox environment and test accounts.
 
 ## Sandbox test buyer
-Use this PayPal **Sandbox** test account at the PayPal button (it is not a real PayPal account and holds only test funds):
-- Email: `sb-ig6ar53637015@personal.example.com`
-- Password: `<SANDBOX_BUYER_PASSWORD — added before submission>`
+Sandbox test buyer credentials are provided in the Devpost testing instructions for judges. You can also use your own PayPal Sandbox personal account. Optional buyer email: `sb-ig6ar53637015@personal.example.com` (a Sandbox test account with test funds only, not a real PayPal account).
 
 ## Safety
 - **Sandbox only.** The app refuses to start unless `PAYPAL_ENV=sandbox`. The API base is hard-coded to `https://api-m.sandbox.paypal.com`.
@@ -85,8 +83,8 @@ Unit tests: `npm test` uses mocked HTTP only (no real API calls).
 - The AI trip summary used to bake in the payout status at creation time (e.g. PENDING). The payout status is now a separate live line (English + Chinese) that updates when you click "Refresh payout status".
 
 ## Limitations
-- Fares use user-entered miles/minutes (no maps API). Drivers are fictional. Trip state is in memory.
-- The ledger is a JSON file under `data/`. On Render's free tier the disk is ephemeral, so the ledger resets on every restart or redeploy. That is fine for a demo but not for production.
+- Fares use user-entered miles/minutes (no maps API). The three drivers are fictional stand-ins (the real operator manages a few drivers). Trip state is in memory.
+- The ledger is a JSON file under `data/`. On Render's free tier the disk is ephemeral, so the ledger resets on every restart or redeploy. An empty ledger after a restart is expected, not a bug (the UI says this too). That is fine for a demo but not for production.
 
 ## License
 MIT. See [LICENSE](LICENSE).
