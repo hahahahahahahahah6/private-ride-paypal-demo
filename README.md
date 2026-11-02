@@ -4,18 +4,18 @@ A standalone demo for the [PayPal AI Hackathon](https://paypalaihackathon.devpos
 private-ride is a small private car-service tool I (Hao Li) run for my dad. This repo is a **new, separate demo**. It does not connect to or share code, data, or credentials with the live private-ride service.
 
 ## What it does
-1. Passenger enters pickup, dropoff, distance and time.
+1. The operator (my dad) enters the trip for the passenger: pickup, dropoff, distance and time.
 2. **AI fare estimate (Gemini)** shown next to a rule-based baseline fare. The AI price is clamped to 50–200% of the baseline.
-3. **PayPal Checkout (Sandbox):** the server creates an Orders v2 order, and the passenger pays with the PayPal JS SDK button and a sandbox buyer account. The server then captures the order and shows the real capture ID.
-4. **Webhook:** `POST /api/webhooks/paypal` verifies the signature with PayPal and writes the event to a JSON ledger (deduplicated by event ID).
-5. **AI dispatch (Gemini):** picks one of 3 fictional demo drivers and explains why.
-6. **Trip complete → driver payout** via PayPal Payouts (Sandbox), showing the real `payout_batch_id` and status.
+3. **PayPal Checkout (Sandbox):** the server creates an Orders v2 order, and the passenger pays the AI fare with the PayPal JS SDK button and a sandbox buyer account. The server then captures the order and shows the real capture ID.
+4. **Webhook:** `POST /api/webhooks/paypal` verifies the signature with PayPal. Webhook events are added only if verified; the server also logs the capture response and payout creation (JSON ledger, deduplicated by event ID).
+5. **AI dispatch (Gemini):** suggests one of 3 fictional demo drivers and explains why; the app checks the ID against the driver list and assigns that suggestion.
+6. **Trip complete → driver payout** via PayPal Sandbox Payouts, showing the real `payout_batch_id` and status.
    - If the sandbox app has no Payouts access, the UI says **"Simulated payout (pending sandbox Payouts access)"** and no money is claimed as sent.
 7. **AI trip summary (Gemini)** in English and Simplified Chinese.
 
 ## What came from before vs. new for the hackathon
-- **From my earlier staging work (Python, never deployed):** the PayPal Orders create/capture, Payouts and webhook-signature-verification logic, plus its 7 mock tests. For this demo it was ported one-to-one to Node (`lib/paypal/checkout.js`, `payouts.js`, `webhooks.js`, `test/staging-paypal.mock.test.js`).
-- **New during the hackathon (Oct 2026 onward):** the sandbox-only adapter (`lib/paypal/index.js`), the ledger (the staging code only verified and classified webhook events; it did not record them), payout status polling, duplicate-request protection, all three Gemini features (fare estimate, dispatch, trip summary), the UI and the Render config.
+- **From my earlier staging work (Python, private, never deployed):** the PayPal Orders create/capture, Payouts and webhook-signature-verification logic, plus its 7 mock tests. Ported one-to-one from my earlier private Python staging code to Node (`lib/paypal/checkout.js`, `payouts.js`, `webhooks.js`), with the same behavior and the same 7 mock tests. The only deliberate changes: the live PayPal URL was removed (Sandbox lock), the injectable urllib `opener` became an injectable `fetch`, and an optional order description was added. The tests are in `test/staging-paypal.mock.test.js`. The private staging repo can be shared with judges on request.
+- **New during the hackathon (this repo's first commit: Nov 1, 2026):** the sandbox-only adapter (`lib/paypal/index.js`), the ledger (the staging code only verified and classified webhook events; it did not record them), payout status polling, duplicate-request protection, all three Gemini features (fare estimate, dispatch, trip summary), the UI and the Render config.
 - The live private-ride service existed before the hackathon and is untouched.
 
 ## Try the hosted demo
@@ -44,16 +44,16 @@ Requires Node.js 20+. No npm dependencies.
    - another *Personal* account as the driver. Put its email in `DRIVER_SANDBOX_EMAIL`.
 3. **Payouts:** in the app's settings, make sure the Payouts feature is enabled. If PayPal denies the call, the demo shows a simulated payout.
 4. **Webhook:** this needs a public HTTPS URL (a deployed instance or a tunnel).
-   - In your app, open **Webhooks → Add Webhook**.
+   - In your app, open **Webhooks → Add Webhook** (the hosted demo's webhook was created the same way via the REST API, `POST /v1/notifications/webhooks`).
    - Set the URL to `https://<your-host>/api/webhooks/paypal`.
-   - Select `PAYMENT.CAPTURE.COMPLETED` and the `PAYMENT.PAYOUTS-ITEM.*` events.
+   - Subscribe at least `CHECKOUT.ORDER.APPROVED`, `PAYMENT.CAPTURE.COMPLETED` and `PAYMENT.PAYOUTSBATCH.SUCCESS`. These are the three types the code records; other verified events are acknowledged but not recorded.
    - Copy the Webhook ID into `PAYPAL_WEBHOOK_ID`.
 5. **Gemini key:** create one at [Google AI Studio](https://aistudio.google.com/apikey) and put it in `GEMINI_API_KEY`. `GEMINI_MODEL` defaults to `gemini-3.5-flash`; on 429/500/503 or unparseable output the app retries with backoff, then tries `GEMINI_FALLBACK_MODELS` (default `gemini-3.5-flash,gemini-3.5-flash-lite`). The model that actually answered is returned as `model` and shown in the UI (see the [Gemini models page](https://ai.google.dev/gemini-api/docs/models)).
 
 ## Run
 ```bash
 cp .env.example .env      # then fill in values yourself
-npm test                  # unit tests (mocked HTTP; no real API calls)
+npm test                  # 25 unit tests (mocked HTTP; no real API calls)
 npm start                 # http://localhost:3000
 ```
 
@@ -66,7 +66,7 @@ All IDs below are PayPal **Sandbox** IDs. No real money moved.
 ### Latest hosted run on Render (screen-recorded for the demo video, Nov 1, 2026, ~10:49 PM PST)
 1. AI fare (Gemini `gemini-3.5-flash-lite`, the fallback model): **$115.00** vs. rule-based baseline **$86.50** (Glendora, CA → LAX T4, 32 mi, 50 min, 7:30 AM, 2 passengers).
 2. PayPal Checkout (Orders v2 + JS SDK, Sandbox buyer): order `48J43089YV5812441`, capture `2MA03628YS0270542`, status **COMPLETED**, 115.00 USD.
-3. AI dispatch (`gemini-3.5-flash`): Driver A (demo).
+3. AI dispatch (`gemini-3.5-flash`): suggested Driver A (demo), assigned by the app.
 4. Driver payout (PayPal Payouts, Sandbox): batch `J5W34MGLLBTC2`, **$92.00** (80% of fare), PENDING → **SUCCESS** after "Refresh payout status".
 5. AI trip summary (EN + ZH, for the operator) written by `gemini-3.5-flash-lite`.
 6. Ledger: 5 entries: the capture, three webhooks (`CHECKOUT.ORDER.APPROVED`, `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.PAYOUTSBATCH.SUCCESS`), each `verified: true` via PayPal's `verify-webhook-signature`, plus `payout_created`.
@@ -76,7 +76,7 @@ All IDs below are PayPal **Sandbox** IDs. No real money moved.
 - Hosted, ~10:05 PM PST: order `33X27905HG703194F` / capture `0CE13430E89718402` / payout `2CGXG5VF5U294` SUCCESS; same three webhooks verified. Screenshots: [`docs/hosted-full-run.png`](docs/hosted-full-run.png) (taken before the live payout-status fix, so its summary text says PENDING), [`docs/hosted-ledger.png`](docs/hosted-ledger.png).
 - Local: order `2FR60181NK187013C` / capture `8NH41129SB271564W` / payout `A5E28Q49YYETQ`; a separate $1 payout test `KZWMQJRFWQJNU` reached SUCCESS.
 
-Unit tests: `npm test` uses mocked HTTP only (no real API calls).
+Unit tests: `npm test` runs 25 tests (7 ported from staging + 18 new), all passing as of Nov 1, 2026. Mocked HTTP only (no real API calls).
 
 ### What failed along the way / known issues
 - `gemini-3.8-flash` repeatedly returned 503 (busy), so the default is `gemini-3.5-flash` with retry and fallback; the UI shows which model answered.
