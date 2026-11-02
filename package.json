@@ -1,0 +1,9 @@
+{
+  "name": "private-ride-paypal-demo",
+  "version": "0.1.0",
+  "description": "Standalone PayPal Sandbox + Gemini AI demo for private-ride (PayPal AI Hackathon)",
+  "license": "MIT",
+  "type": "commonjs",
+  "engines": { "node": ">=20" },
+  "scripts": { "start": "node server.js", "test": "node --test test/" }
+}
