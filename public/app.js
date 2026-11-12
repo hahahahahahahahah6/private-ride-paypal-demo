@@ -158,7 +158,7 @@ function ledgerRow(e) {
   let what = '', detail = '', amount = '—', check = '';
   if (e.type === 'webhook') {
     what = `<b>${esc(e.eventType)}</b><small>PayPal webhook</small>`;
-    detail = `Resource <span class="mono">${esc(e.resourceId)}</span>`;
+    detail = e.resourceId ? `${/PAYOUTSBATCH/.test(e.eventType || '') ? 'Batch' : 'Resource'} <span class="mono">${esc(e.resourceId)}</span>` : '—';
     check = e.verified ? badge('VERIFIED', '✓ SIGNATURE VERIFIED') : badge('FAILED', 'UNVERIFIED');
   } else if (e.type === 'capture_api_response') {
     what = '<b>Payment captured</b><small>Capture API response</small>';
@@ -173,7 +173,8 @@ function ledgerRow(e) {
   } else {
     what = `<b>${esc(e.type)}</b>`; detail = esc(JSON.stringify(e));
   }
-  return `<tr><td>${esc(t)}</td><td class="evt">${what}</td><td>${detail}</td><td>${amount}</td><td>${e.status ? badge(e.status) : ''}</td><td>${check}</td></tr>`;
+  const atCreation = e.type === 'payout_created' && e.status ? ' <small class="meta" title="Status returned by the Payouts API when the batch was created. The live status is shown in step 4 and in the PAYOUTSBATCH webhook row.">at creation</small>' : '';
+  return `<tr><td>${esc(t)}</td><td class="evt">${what}</td><td>${detail}</td><td>${amount}</td><td>${e.status ? badge(e.status) + atCreation : ''}</td><td>${check}</td></tr>`;
 }
 async function loadLedger() {
   try {

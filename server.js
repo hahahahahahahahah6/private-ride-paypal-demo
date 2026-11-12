@@ -94,7 +94,7 @@ const routes = {
     if (!result.verified) return { verified: false };
     const ev = JSON.parse(raw);
     if (!result.action) return { verified: true, ignored: ev.event_type }; // staging rule: only actionable events are recorded
-    const r = ledger.append({ type: 'webhook', action: result.action, eventId: ev.id, eventType: ev.event_type, resourceId: ev.resource?.id, status: ev.resource?.status, verified: true });
+    const r = ledger.append(ledger.webhookEntry(ev, result.action));
     return { verified: true, action: result.action, duplicate: r.duplicate };
   },
   'GET /api/ledger': async () => ledger.read(),

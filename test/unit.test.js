@@ -211,3 +211,21 @@ test('[intake] prompt treats operator text as fenced JSON data; parseIntake retu
   assert.match(sent, /2026-11-11 19:40/);
   await assert.rejects(ai.parseIntake(''), /describe the trip/);
 });
+test('[dispatch] reasons use roster display names, not internal ids; id validation unchanged', async () => {
+  const roster = [{ id: 'd1', name: 'Driver A (demo)' }, { id: 'd2', name: 'Driver B (demo)' }, { id: 'd3', name: 'Driver C (demo)' }];
+  assert.strictEqual(ai.nameDriverIds('Driver d1 is closer (6 minutes compared to 14 minutes for Driver d2), and d3 is unavailable; d1\'s rating is 4.9. odd1 d10', roster),
+    'Driver A (demo) is closer (6 minutes compared to 14 minutes for Driver B (demo)), and Driver C (demo) is unavailable; Driver A (demo)\'s rating is 4.9. odd1 d10');
+  process.env.GEMINI_API_KEY = 'k'; gemini._resetLimits({ max: 20, perMinute: 20 });
+  gemini._setFetch(async () => res(200, { candidates: [{ content: { parts: [{ text: JSON.stringify({ driverId: 'd1', reasons: ['Driver d1 is available while d3 is not.'] }) }] } }] }));
+  const r = await ai.pickDriver({ pickup: 'a', dropoff: 'b', miles: 1 }, roster);
+  assert.strictEqual(r.driver.id, 'd1'); assert.deepStrictEqual(r.reasons, ['Driver A (demo) is available while Driver C (demo) is not.']);
+  const { dispatch } = require('../lib/ai/prompts');
+  assert.match(dispatch.prompt({ pickup: 'a', dropoff: 'b', miles: 1 }, roster), /never by their id/);
+});
+test('[ledger] payout batch webhook row takes id/status from batch_header', () => {
+  assert.deepStrictEqual(ledger.webhookEntry({ id: 'WH-1', event_type: 'PAYMENT.PAYOUTSBATCH.SUCCESS', resource: { batch_header: { payout_batch_id: 'J5W34MGLLBTC2', batch_status: 'SUCCESS' } } }, 'payout_completed'),
+    { type: 'webhook', action: 'payout_completed', eventId: 'WH-1', eventType: 'PAYMENT.PAYOUTSBATCH.SUCCESS', resourceId: 'J5W34MGLLBTC2', status: 'SUCCESS', verified: true });
+  const cap = ledger.webhookEntry({ id: 'WH-2', event_type: 'PAYMENT.CAPTURE.COMPLETED', resource: { id: 'CAP1', status: 'COMPLETED' } }, 'payment_completed');
+  assert.strictEqual(cap.resourceId, 'CAP1'); assert.strictEqual(cap.status, 'COMPLETED');
+  assert.strictEqual(ledger.webhookEntry({ id: 'WH-3', event_type: 'X' }, 'x').resourceId, undefined);
+});
