@@ -34,6 +34,7 @@ function getTrip(id) { const t = trips.get(id); if (!t) throw new Error('unknown
 
 const routes = {
   'GET /api/status': async () => ({ sandboxOnly: true, apiBase: cfg.PAYPAL_API_BASE, ...cfg.status(), paypalClientId: process.env.PAYPAL_CLIENT_ID || null }),
+  'POST /api/intake': async (req) => ai.parseIntake((await json(req)).text), // fills the form only; no price, no money
   'POST /api/estimate': async (req) => {
     const trip = v.trip(await json(req));
     const est = await ai.estimateFare(trip);

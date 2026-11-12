@@ -56,6 +56,7 @@ function loadPayPal(clientId) {
       try {
         const c = await call('POST', '/api/capture', { tripId });
         if (c.tripId) tripId = c.tripId;
+        $('intakeBtn').disabled = true;
         $('estimateBtn').disabled = true; // lock this trip once paid so a re-estimate can't swap tripId
         const paid = c.stage === 'paid';
         $('payment').innerHTML = `<div class="result-h">${badge(c.captureStatus)}<strong>${paid ? 'Payment captured' : 'Payment not completed'}</strong><span class="meta">PayPal Sandbox · Orders v2 capture</span></div>
@@ -185,6 +186,46 @@ async function loadLedger() {
 }
 $('ledgerBtn').onclick = loadLedger;
 $('rawToggle').onchange = () => { const raw = $('rawToggle').checked; $('ledger').hidden = !raw; $('ledgerTable').hidden = raw; };
+// ---- natural-language intake (fills the form only; the operator still clicks "Get AI fare estimate") ----
+const FIELD_LABEL = { pickup: 'pickup 上车点', dropoff: 'dropoff 目的地', pickupTime: 'time 时间', passengers: 'passengers 人数', distance: 'miles/minutes 里程/时长' };
+const markFilled = (id, v) => { $(id).value = v; $(id).classList.add('ai-filled'); };
+['pickup', 'dropoff', 'miles', 'minutes', 'when', 'notes'].forEach((id) => $(id).addEventListener('input', () => {
+  $(id).classList.remove('ai-filled'); if ($(id + 'Tag')) $(id + 'Tag').hidden = true;
+}));
+$('intakeBtn').onclick = async () => {
+  if (current > 2) return; // trip already paid: form is locked
+  $('intakeBtn').disabled = true; $('intakeOut').innerHTML = loading('Reading your sentence with Gemini…');
+  try {
+    const r = await call('POST', '/api/intake', { text: $('intakeText').value });
+    if (r.pickup) markFilled('pickup', r.pickup);
+    if (r.dropoff) markFilled('dropoff', r.dropoff);
+    if (r.when) markFilled('when', r.when);
+    const extra = [r.passengers ? `${r.passengers} passenger${r.passengers > 1 ? 's' : ''}` : '', r.luggage != null ? `${r.luggage} bag${r.luggage === 1 ? '' : 's'}` : '', r.notes || ''].filter(Boolean).join(', ');
+    if (extra) markFilled('notes', extra);
+    if (r.estMiles != null && r.estMinutes != null) { markFilled('miles', r.estMiles); markFilled('minutes', r.estMinutes); $('milesTag').hidden = false; $('minutesTag').hidden = false; }
+    const miss = (r.missing || []).map((k) => FIELD_LABEL[k] || k);
+    $('intakeOut').innerHTML = `<div class="filled"><b>Filled from your sentence — please check · 已根据你的描述填好，请核对</b>
+      <span class="meta">Highlighted fields were filled by <code>${esc(r.model || 'Gemini')}</code>. Miles/minutes are AI estimates; edit anything, then click “Get AI fare estimate”.</span>
+      ${miss.length ? `<div class="miss">Not in your sentence · 还缺：${esc(miss.join(', '))}${miss.includes(FIELD_LABEL.distance) ? ' (form defaults kept)' : ''}</div>` : ''}</div>`;
+  } catch (e) { $('intakeOut').innerHTML = errHtml(e); }
+  $('intakeBtn').disabled = current > 2;
+};
+// Voice input: browser Web Speech API (Chrome/Edge/Safari). Hidden when unsupported; typing always works.
+(() => {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  $('micWrap').hidden = false;
+  let rec = null;
+  $('micBtn').onclick = () => {
+    if (rec) { rec.stop(); return; }
+    rec = new SR(); rec.lang = $('micLang').value; rec.interimResults = true; rec.maxAlternatives = 1;
+    const base = $('intakeText').value ? $('intakeText').value + ' ' : '';
+    rec.onresult = (ev) => { $('intakeText').value = base + Array.from(ev.results).map((x) => x[0].transcript).join(''); };
+    rec.onerror = (ev) => { $('intakeOut').innerHTML = `<p class="err">Voice input unavailable (${esc(ev.error)}). Please type instead.</p>`; };
+    rec.onend = () => { rec = null; $('micBtn').classList.remove('rec'); $('micBtn').setAttribute('aria-pressed', 'false'); };
+    try { rec.start(); $('micBtn').classList.add('rec'); $('micBtn').setAttribute('aria-pressed', 'true'); } catch { rec = null; }
+  };
+})();
 setStep(1);
 loadLedger();
 loadStatus().catch((e) => { $('statusBody').innerHTML = errHtml(e); $('status').open = true; });
