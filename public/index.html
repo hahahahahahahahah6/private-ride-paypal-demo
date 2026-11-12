@@ -1,30 +1,88 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>private-ride · PayPal Sandbox + Gemini demo</title>
-<style>
-body{font-family:system-ui,sans-serif;max-width:760px;margin:24px auto;padding:0 16px;color:#1b1b1b}
-section{border:1px solid #ddd;border-radius:10px;padding:14px 16px;margin:14px 0}
-.banner{background:#fff4d6;border:1px solid #f0c040;padding:8px 12px;border-radius:8px}
-.err{color:#b00020;font-weight:600}.ok{color:#0a7a2f;font-weight:600}.sim{color:#a35a00;font-weight:600}
-input{padding:6px;margin:3px 0;width:100%;box-sizing:border-box}button{padding:8px 14px;margin-top:6px;cursor:pointer}
-.row{display:flex;gap:12px}.row>div{flex:1}code{background:#f3f3f3;padding:1px 4px;border-radius:4px}
-pre{white-space:pre-wrap;background:#f7f7f7;padding:8px;border-radius:6px}
-</style></head><body>
-<h1>private-ride</h1>
-<p class="banner">PayPal <b>Sandbox only</b> — no real money moves. AI by Gemini.</p>
-<section id="status"><h3>Configuration</h3><div id="statusBody">Loading…</div></section>
-<section><h3>1. Trip</h3>
-  <label>Pickup<input id="pickup" placeholder="e.g. Home"></label>
-  <label>Dropoff<input id="dropoff" placeholder="e.g. Clinic"></label>
-  <div class="row"><div><label>Miles<input id="miles" type="number" step="0.1" value="8"></label></div>
-  <div><label>Minutes<input id="minutes" type="number" value="20"></label></div></div>
-  <label>When<input id="when" placeholder="now / Fri 8am"></label>
-  <label>Notes<input id="notes" placeholder="e.g. wheelchair in trunk"></label>
-  <button id="estimateBtn">Get AI fare estimate</button>
-  <div id="estimate"></div></section>
-<section><h3>2. Pay with PayPal (Sandbox)</h3><div id="paypal-buttons"></div><div id="payment"></div></section>
-<section><h3>3. AI dispatch</h3><button id="dispatchBtn" disabled>Pick a driver with AI</button><div id="dispatch"></div></section>
-<section><h3>4. Complete trip → driver payout + AI summary</h3><button id="completeBtn" disabled>Mark trip complete</button><div id="complete"></div></section>
-<section><h3>Ledger</h3><p><small>Demo note: the ledger is stored on Render's free-tier disk and resets after every restart or redeploy, so an empty ledger is expected, not broken.</small></p><button id="ledgerBtn">Refresh ledger</button><pre id="ledger"></pre></section>
+<link rel="stylesheet" href="/style.css">
+</head><body>
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <div class="brand"><span class="logo" aria-hidden="true">PR</span><div><b>private-ride</b><small>Operator dashboard · 车行调度台</small></div></div>
+    <details id="status" class="sys"><summary><span id="sysDot" class="dot"></span>System status <span class="zh">系统状态</span></summary><div id="statusBody" class="sys-body">Loading…</div></details>
+  </div>
+</header>
+<div class="sandbox"><div class="wrap"><b>PayPal Sandbox only</b> — no real money moves. Test accounts only. AI by Gemini. <span class="zh">沙盒演示，不涉及真实资金</span></div></div>
+
+<main class="wrap">
+  <section class="intro">
+    <h1>Book, pay and pay the driver — in one flow</h1>
+    <p>A small family car service: AI suggests the fare and the driver, PayPal Checkout takes the payment, PayPal Payouts pays the driver 80% when the trip is done, and signature-verified PayPal webhooks are recorded in a ledger.</p>
+  </section>
+
+  <ol class="stepper" id="stepper">
+    <li data-step="1"><span class="n">1</span><span><b>Estimate</b><small>估价</small></span></li>
+    <li data-step="2"><span class="n">2</span><span><b>Pay</b><small>付款</small></span></li>
+    <li data-step="3"><span class="n">3</span><span><b>Dispatch</b><small>派车</small></span></li>
+    <li data-step="4"><span class="n">4</span><span><b>Complete &amp; pay driver</b><small>完成并付司机</small></span></li>
+    <li data-step="5"><span class="n">5</span><span><b>Ledger</b><small>账本</small></span></li>
+  </ol>
+
+  <div class="layout">
+    <div class="steps">
+      <section class="card" id="card1">
+        <div class="card-h"><span class="n">1</span><h2>Trip &amp; AI fare estimate <span class="zh">行程与 AI 估价</span></h2></div>
+        <div class="grid2">
+          <label>Pickup<input id="pickup" placeholder="e.g. Glendora, CA"></label>
+          <label>Dropoff<input id="dropoff" placeholder="e.g. LAX Terminal 4"></label>
+          <label>Miles<input id="miles" type="number" step="0.1" value="8"></label>
+          <label>Minutes<input id="minutes" type="number" value="20"></label>
+          <label>When<input id="when" placeholder="now / Fri 8am"></label>
+          <label>Notes<input id="notes" placeholder="e.g. 2 passengers, wheelchair in trunk"></label>
+        </div>
+        <button id="estimateBtn" class="btn primary">Get AI fare estimate</button>
+        <div id="estimate" class="out"></div>
+      </section>
+
+      <section class="card" id="card2">
+        <div class="card-h"><span class="n">2</span><h2>Pay with PayPal <span class="tag">Sandbox</span> <span class="zh">PayPal 付款</span></h2></div>
+        <p class="hint" id="payHint">Get an estimate first. The customer pays the AI fare through PayPal Checkout (Orders v2).</p>
+        <div id="paypal-buttons"></div><div id="payment" class="out"></div>
+      </section>
+
+      <section class="card" id="card3">
+        <div class="card-h"><span class="n">3</span><h2>AI dispatch <span class="zh">AI 派车</span></h2></div>
+        <p class="hint">Unlocks after the payment is COMPLETED. Gemini picks from the driver roster and explains why; the app rejects any driver not on the roster.</p>
+        <button id="dispatchBtn" class="btn primary" disabled>Pick a driver with AI</button><div id="dispatch" class="out"></div>
+      </section>
+
+      <section class="card" id="card4">
+        <div class="card-h"><span class="n">4</span><h2>Complete trip → pay driver <span class="zh">完成行程并付司机</span></h2></div>
+        <p class="hint">Sends 80% of the fare to the driver with PayPal Payouts (Sandbox) and asks Gemini for a bilingual trip summary.</p>
+        <button id="completeBtn" class="btn primary" disabled>Mark trip complete</button><div id="complete" class="out"></div>
+      </section>
+
+    </div>
+
+    <aside class="side">
+      <div class="card sticky">
+        <h3>This trip <span class="zh">本次行程</span></h3>
+        <dl class="glance">
+          <dt>Route</dt><dd id="gRoute">—</dd>
+          <dt>Fare</dt><dd id="gFare">—</dd>
+          <dt>Payment</dt><dd id="gPay"><span class="badge muted">NOT STARTED</span></dd>
+          <dt>Driver</dt><dd id="gDriver">—</dd>
+          <dt>Driver payout</dt><dd id="gPayout"><span class="badge muted">NOT STARTED</span></dd>
+        </dl>
+        <p class="fine">Payment and payout statuses come straight from PayPal Sandbox API responses, never from AI-written text.</p>
+      </div>
+    </aside>
+  </div>
+  <section class="card" id="card5">
+        <div class="card-h"><span class="n">5</span><h2>Ledger <span class="zh">账本</span></h2>
+          <div class="card-actions"><label class="toggle"><input type="checkbox" id="rawToggle"> Raw JSON</label><button id="ledgerBtn" class="btn">Refresh ledger</button></div></div>
+        <p class="hint">Capture and payout API responses, plus PayPal webhooks verified with <code>verify-webhook-signature</code>. Demo note: stored on Render's free-tier disk, so it resets after every restart or redeploy — an empty ledger is expected, not broken.</p>
+        <div id="ledgerTable"></div>
+        <pre id="ledger" hidden></pre>
+      </section>
+</main>
+<footer class="wrap foot">Sandbox demo for the PayPal AI Hackathon · <a href="https://github.com/hahahahahahahahah6/private-ride-paypal-demo">Source on GitHub</a></footer>
 <script src="/app.js"></script>
 </body></html>
