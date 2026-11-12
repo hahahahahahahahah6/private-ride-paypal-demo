@@ -6,7 +6,7 @@ private-ride is a small private car-service tool I (Hao Li) run for my dad. This
 ## Judges: start here
 Hosted demo (Render free tier, Sandbox only): https://private-ride-paypal-demo.onrender.com — first load after idle may take 30–60 seconds. An empty ledger after a restart is expected.
 
-Video (2 min): https://youtu.be/APZnY3sc4UE
+Video (2.5 min): https://youtu.be/4HeT25jIcLU
 
 Sandbox test buyer credentials are provided in the Devpost testing instructions for judges. You can also use your own PayPal Sandbox personal account. Optional buyer email: `sb-ig6ar53637015@personal.example.com` (a Sandbox test account with test funds only, not a real PayPal account).
 
@@ -32,7 +32,7 @@ Architecture in one line: the operator enters a trip; Gemini suggests a fare (cl
 ## Try the hosted demo
 - URL: https://private-ride-paypal-demo.onrender.com (hosted on Render's free tier; after idle, the first request can take ~30-60 seconds while the service cold-starts).
 - **Sandbox only. No real money moves.** Payments use PayPal's Sandbox environment and test accounts.
-- Demo video (2 min): https://youtu.be/APZnY3sc4UE
+- Demo video (2.5 min): https://youtu.be/4HeT25jIcLU
 
 ## Sandbox test buyer
 Sandbox test buyer credentials are provided in the Devpost testing instructions for judges. You can also use your own PayPal Sandbox personal account. Optional buyer email: `sb-ig6ar53637015@personal.example.com` (a Sandbox test account with test funds only, not a real PayPal account).
