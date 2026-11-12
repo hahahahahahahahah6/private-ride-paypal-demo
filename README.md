@@ -3,6 +3,17 @@
 A standalone demo for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/).
 private-ride is a small private car-service tool I (Hao Li) run for my dad. This repo is a **new, separate demo**. It does not connect to or share code, data, or credentials with the live private-ride service.
 
+## Judges: start here
+Hosted demo (Render free tier, Sandbox only): https://private-ride-paypal-demo.onrender.com — first load after idle may take 30–60 seconds. An empty ledger after a restart is expected.
+
+Video (2 min): https://youtu.be/APZnY3sc4UE
+
+Sandbox test buyer credentials are provided in the Devpost testing instructions for judges. You can also use your own PayPal Sandbox personal account. Optional buyer email: `sb-ig6ar53637015@personal.example.com` (a Sandbox test account with test funds only, not a real PayPal account).
+
+Run locally: copy `.env.example` to `.env`, fill in Sandbox and Gemini values, then `npm test` (25 mocked tests) and `npm start` (http://localhost:3000). Full setup is below.
+
+Architecture in one line: the operator enters a trip; Gemini suggests a fare (clamped to a rule baseline); the passenger pays with PayPal Checkout; only after a COMPLETED capture does Gemini suggest a driver; when the trip is marked complete, PayPal Payouts sends the driver 80% and Gemini writes a bilingual summary; verified webhooks are recorded in a ledger.
+
 ## What it does
 1. The operator (my dad) enters the trip for the passenger: pickup, dropoff, distance and time.
 2. **AI fare estimate (Gemini)** shown next to a rule-based baseline fare. The AI price is clamped to 50–200% of the baseline.
