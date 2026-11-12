@@ -162,3 +162,19 @@ test('[prompts] summary prompt does not bake in payout status', () => {
   const { tripSummary } = require('../lib/ai/prompts');
   assert.match(tripSummary.prompt({ paidUsd: 95 }), /Do NOT mention the driver payout status/);
 });
+test('[ai] summary never states a payout status (sentences about payout/status are dropped)', async () => {
+  const facts = { pickup: 'Glendora, CA', dropoff: 'LAX Terminal 4', miles: 32, paidUsd: 115, captureId: 'CAP1', driver: 'Driver A (demo)' };
+  const { tripSummary } = require('../lib/ai/prompts');
+  assert.doesNotMatch(JSON.stringify(facts), /status|PENDING|SUCCESS/);
+  assert.match(tripSummary.prompt(facts), /Do NOT mention the driver payout status/);
+  const en = ai.stripPayoutTalk('Driver A completed the trip from Glendora to LAX. The customer successfully paid $115 (capture CAP1). The driver payout is (PENDING). Smooth ride!', false);
+  assert.strictEqual(en, 'Driver A completed the trip from Glendora to LAX. The customer successfully paid $115 (capture CAP1). Smooth ride!');
+  const zh = ai.stripPayoutTalk('司机A完成了行程。客户已支付115美元。司机放款状态：处理中（PENDING）。', true);
+  assert.strictEqual(zh, '司机A完成了行程。客户已支付115美元。');
+  process.env.GEMINI_API_KEY = 'k'; gemini._resetLimits({ max: 20, perMinute: 20 });
+  gemini._setFetch(async () => res(200, { candidates: [{ content: { parts: [{ text: JSON.stringify({ en: 'Trip done, $115 paid. Payout: PENDING.', zh: '行程完成，已付115美元。放款处理中。' }) }] } }] }));
+  const s = await ai.summarizeTrip(facts);
+  assert.strictEqual(s.en, 'Trip done, $115 paid.'); assert.strictEqual(s.zh, '行程完成，已付115美元。');
+  gemini._setFetch(async () => res(200, { candidates: [{ content: { parts: [{ text: '{"en":"Payout PENDING.","zh":"放款处理中。"}' }] } }] }));
+  await assert.rejects(ai.summarizeTrip(facts), /only described the payout status/);
+});

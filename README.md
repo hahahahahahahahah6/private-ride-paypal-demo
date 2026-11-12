@@ -10,7 +10,7 @@ Video (2 min): https://youtu.be/APZnY3sc4UE
 
 Sandbox test buyer credentials are provided in the Devpost testing instructions for judges. You can also use your own PayPal Sandbox personal account. Optional buyer email: `sb-ig6ar53637015@personal.example.com` (a Sandbox test account with test funds only, not a real PayPal account).
 
-Run locally: copy `.env.example` to `.env`, fill in Sandbox and Gemini values, then `npm test` (25 mocked tests) and `npm start` (http://localhost:3000). Full setup is below.
+Run locally: copy `.env.example` to `.env`, fill in Sandbox and Gemini values, then `npm test` (26 mocked tests) and `npm start` (http://localhost:3000). Full setup is below.
 
 Architecture in one line: the operator enters a trip; Gemini suggests a fare (clamped to a rule baseline); the passenger pays with PayPal Checkout; only after a COMPLETED capture does Gemini suggest a driver; when the trip is marked complete, PayPal Payouts sends the driver 80% and Gemini writes a bilingual summary; verified webhooks are recorded in a ledger.
 
@@ -64,7 +64,7 @@ Requires Node.js 20+. No npm dependencies.
 ## Run
 ```bash
 cp .env.example .env      # then fill in values yourself
-npm test                  # 25 unit tests (mocked HTTP; no real API calls)
+npm test                  # 26 unit tests (mocked HTTP; no real API calls)
 npm start                 # http://localhost:3000
 ```
 
@@ -87,12 +87,12 @@ All IDs below are PayPal **Sandbox** IDs. No real money moved.
 - Hosted, ~10:05 PM PST: order `33X27905HG703194F` / capture `0CE13430E89718402` / payout `2CGXG5VF5U294` SUCCESS; same three webhooks verified. Screenshots: [`docs/hosted-full-run.png`](docs/hosted-full-run.png) (taken before the live payout-status fix, so its summary text says PENDING), [`docs/hosted-ledger.png`](docs/hosted-ledger.png).
 - Local: order `2FR60181NK187013C` / capture `8NH41129SB271564W` / payout `A5E28Q49YYETQ`; a separate $1 payout test `KZWMQJRFWQJNU` reached SUCCESS.
 
-Unit tests: `npm test` runs 25 tests (7 ported from staging + 18 new), all passing as of Nov 1, 2026. Mocked HTTP only (no real API calls).
+Unit tests: `npm test` runs 26 tests (7 ported from staging + 19 new), all passing as of Nov 11, 2026. Mocked HTTP only (no real API calls).
 
 ### What failed along the way / known issues
 - `gemini-3.8-flash` repeatedly returned 503 (busy), so the default is `gemini-3.5-flash` with retry and fallback; the UI shows which model answered.
 - A duplicated dispatch request once caused an "unpaid trip" error; buttons now lock while waiting and duplicate requests cannot trigger a second payout.
-- The AI trip summary used to bake in the payout status at creation time (e.g. PENDING). The payout status is now a separate live line (English + Chinese) that updates when you click "Refresh payout status".
+- The AI trip summary used to bake in the payout status at creation time (e.g. PENDING). The payout status is not given to Gemini, and on Nov 11 a live run showed the model could still guess "(PENDING)", so the server now drops any summary sentence about the payout or a status word. The payout status is only shown as a separate live line (English + Chinese) that refreshes automatically and with "Refresh payout status".
 
 ## Limitations
 - Fares use user-entered miles/minutes (no maps API). The three drivers are fictional stand-ins (the real operator manages a few drivers). Trip state is in memory.
